@@ -1,7 +1,7 @@
 /*
  * librc-strlist.h
  * String list functions to make using queue(3) a little easier.
-*/
+ */
 
 /*
  * Copyright (c) 2007-2015 The OpenRC Authors.
@@ -20,130 +20,110 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "queue.h"
-#include "librc.h"
 #include "helpers.h"
+#include "librc.h"
+#include "queue.h"
 
-RC_STRINGLIST *
-rc_stringlist_new(void)
-{
-	RC_STRINGLIST *l = xmalloc(sizeof(*l));
-	TAILQ_INIT(l);
-	return l;
+RC_STRINGLIST *rc_stringlist_new(void) {
+  RC_STRINGLIST *l = xmalloc(sizeof(*l));
+  TAILQ_INIT(l);
+  return l;
 }
 
-RC_STRING *
-rc_stringlist_add(RC_STRINGLIST *list, const char *value)
-{
-	RC_STRING *s = xmalloc(sizeof(*s));
+RC_STRING *rc_stringlist_add(RC_STRINGLIST *list, const char *value) {
+  RC_STRING *s = xmalloc(sizeof(*s));
 
-	s->value = xstrdup(value);
-	TAILQ_INSERT_TAIL(list, s, entries);
-	return s;
+  s->value = xstrdup(value);
+  TAILQ_INSERT_TAIL(list, s, entries);
+  return s;
 }
 
-RC_STRING *
-rc_stringlist_addu(RC_STRINGLIST *list, const char *value)
-{
-	RC_STRING *s;
+RC_STRING *rc_stringlist_addu(RC_STRINGLIST *list, const char *value) {
+  RC_STRING *s;
 
-	TAILQ_FOREACH(s, list, entries)
-	    if (strcmp(s->value, value) == 0) {
-		    errno = EEXIST;
-		    return NULL;
-	    }
+  TAILQ_FOREACH(s, list, entries)
+  if (strcmp(s->value, value) == 0) {
+    errno = EEXIST;
+    return NULL;
+  }
 
-	return rc_stringlist_add(list, value);
+  return rc_stringlist_add(list, value);
 }
 
-bool
-rc_stringlist_delete(RC_STRINGLIST *list, const char *value)
-{
-	RC_STRING *s;
+bool rc_stringlist_delete(RC_STRINGLIST *list, const char *value) {
+  RC_STRING *s;
 
-	TAILQ_FOREACH(s, list, entries)
-	    if (strcmp(s->value, value) == 0) {
-		    TAILQ_REMOVE(list, s, entries);
-		    free(s->value);
-		    free(s);
-		    return true;
-	    }
+  TAILQ_FOREACH(s, list, entries)
+  if (strcmp(s->value, value) == 0) {
+    TAILQ_REMOVE(list, s, entries);
+    free(s->value);
+    free(s);
+    return true;
+  }
 
-	errno = EEXIST;
-	return false;
+  errno = EEXIST;
+  return false;
 }
 
-RC_STRING *
-rc_stringlist_find(RC_STRINGLIST *list, const char *value)
-{
-	RC_STRING *s;
+RC_STRING *rc_stringlist_find(RC_STRINGLIST *list, const char *value) {
+  RC_STRING *s;
 
-	if (list) {
-		TAILQ_FOREACH(s, list, entries)
-		    if (strcmp(s->value, value) == 0)
-			    return s;
-	}
-	return NULL;
+  if (list) {
+    TAILQ_FOREACH(s, list, entries)
+    if (strcmp(s->value, value) == 0) return s;
+  }
+  return NULL;
 }
 
-RC_STRINGLIST *
-rc_stringlist_split(const char *value, const char *sep)
-{
-	RC_STRINGLIST *list = rc_stringlist_new();
-	char *d = xstrdup(value);
-	char *p = d, *token;
+RC_STRINGLIST *rc_stringlist_split(const char *value, const char *sep) {
+  RC_STRINGLIST *list = rc_stringlist_new();
+  char *d = xstrdup(value);
+  char *p = d, *token;
 
-	while ((token = strsep(&p, sep)))
-		rc_stringlist_add(list, token);
-	free(d);
+  while ((token = strsep(&p, sep))) rc_stringlist_add(list, token);
+  free(d);
 
-	return list;
+  return list;
 }
 
-void
-rc_stringlist_sort(RC_STRINGLIST **list)
-{
-	RC_STRINGLIST *l = *list;
-	RC_STRINGLIST *new = rc_stringlist_new();
-	RC_STRING *s;
-	RC_STRING *sn;
-	RC_STRING *n;
-	RC_STRING *last;
+void rc_stringlist_sort(RC_STRINGLIST **list) {
+  RC_STRINGLIST *l = *list;
+  RC_STRINGLIST *new = rc_stringlist_new();
+  RC_STRING *s;
+  RC_STRING *sn;
+  RC_STRING *n;
+  RC_STRING *last;
 
-	TAILQ_FOREACH_SAFE(s, l, entries, sn) {
-		TAILQ_REMOVE(l, s, entries);
-		last = NULL;
-		TAILQ_FOREACH(n, new, entries) {
-			if (strcmp(s->value, n->value) < 0)
-				break;
-			last = n;
-		}
-		if (last)
-			TAILQ_INSERT_AFTER(new, last, s, entries);
-		else
-			TAILQ_INSERT_HEAD(new, s, entries);
-	}
+  TAILQ_FOREACH_SAFE(s, l, entries, sn) {
+    TAILQ_REMOVE(l, s, entries);
+    last = NULL;
+    TAILQ_FOREACH(n, new, entries) {
+      if (strcmp(s->value, n->value) < 0) break;
+      last = n;
+    }
+    if (last)
+      TAILQ_INSERT_AFTER(new, last, s, entries);
+    else
+      TAILQ_INSERT_HEAD(new, s, entries);
+  }
 
-	/* Now we've sorted the list, copy across the new head */
-	free(l);
-	*list = new;
+  /* Now we've sorted the list, copy across the new head */
+  free(l);
+  *list = new;
 }
 
-void
-rc_stringlist_free(RC_STRINGLIST *list)
-{
-	RC_STRING *s1;
-	RC_STRING *s2;
+void rc_stringlist_free(RC_STRINGLIST *list) {
+  RC_STRING *s1;
+  RC_STRING *s2;
 
-	if (!list)
-		return;
+  if (!list) return;
 
-	s1 = TAILQ_FIRST(list);
-	while (s1) {
-		s2 = TAILQ_NEXT(s1, entries);
-		free(s1->value);
-		free(s1);
-		s1 = s2;
-	}
-	free(list);
+  s1 = TAILQ_FIRST(list);
+  while (s1) {
+    s2 = TAILQ_NEXT(s1, entries);
+    free(s1->value);
+    free(s1);
+    s1 = s2;
+  }
+  free(list);
 }

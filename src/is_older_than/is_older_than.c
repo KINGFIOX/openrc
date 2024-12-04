@@ -14,18 +14,15 @@
 
 #include "rc.h"
 
-int main(int argc, char **argv)
-{
-	int i;
+int main(int argc, char **argv) {
+  int i;
 
-	if (argc < 3)
-		return EXIT_FAILURE;
+  if (argc < 3) return EXIT_FAILURE;
 
-	/* This test is perverted - historically the baselayout function
-	 * returns 0 on *failure*, which is plain wrong */
-	for (i = 2; i < argc; ++i)
-		if (!rc_newer_than(argv[1], argv[i], NULL, NULL))
-			return EXIT_SUCCESS;
+  /* This test is perverted - historically the baselayout function
+   * returns 0 on *failure*, which is plain wrong */
+  for (i = 2; i < argc; ++i)
+    if (!rc_newer_than(argv[1], argv[i], NULL, NULL)) return EXIT_SUCCESS;
 
-	return EXIT_FAILURE;
+  return EXIT_FAILURE;
 }

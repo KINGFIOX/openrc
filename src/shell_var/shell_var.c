@@ -14,23 +14,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(int argc, char **argv)
-{
-	int i;
-	char *p;
-	int c;
+int main(int argc, char **argv) {
+  int i;
+  char *p;
+  int c;
 
-	for (i = 1; i < argc; i++) {
-		p = argv[i];
-		if (i != 1)
-			putchar(' ');
-		while (*p) {
-			c = (unsigned char)*p++;
-			if (!isalnum(c))
-				c = '_';
-			putchar(c);
-		}
-	}
-	putchar('\n');
-	return EXIT_SUCCESS;
+  for (i = 1; i < argc; i++) {
+    p = argv[i];
+    if (i != 1) putchar(' ');
+    while (*p) {
+      c = (unsigned char)*p++;
+      if (!isalnum(c)) c = '_';
+      putchar(c);
+    }
+  }
+  putchar('\n');
+  return EXIT_SUCCESS;
 }

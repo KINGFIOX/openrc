@@ -1,7 +1,7 @@
 /*
  * rc-misc.c
  * rc misc functions
-*/
+ */
 
 /*
  * Copyright (c) 2007-2015 The OpenRC Authors.
@@ -15,10 +15,10 @@
  *    except according to the terms contained in the LICENSE file.
  */
 
-#include <fnmatch.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fnmatch.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -27,34 +27,23 @@
 #include <strings.h>
 #include <sys/stat.h>
 
-#include "queue.h"
-#include "librc.h"
 #include "helpers.h"
+#include "librc.h"
 #include "misc.h"
+#include "queue.h"
 
-bool
-rc_yesno(const char *value)
-{
-	if (!value) {
-		errno = ENOENT;
-		return false;
-	}
+bool rc_yesno(const char *value) {
+  if (!value) {
+    errno = ENOENT;
+    return false;
+  }
 
-	if (strcasecmp(value, "yes") == 0 ||
-	    strcasecmp(value, "y") == 0 ||
-	    strcasecmp(value, "true") == 0 ||
-	    strcasecmp(value, "1") == 0)
-		return true;
+  if (strcasecmp(value, "yes") == 0 || strcasecmp(value, "y") == 0 || strcasecmp(value, "true") == 0 || strcasecmp(value, "1") == 0) return true;
 
-	if (strcasecmp(value, "no") != 0 &&
-	    strcasecmp(value, "n") != 0 &&
-	    strcasecmp(value, "false") != 0 &&
-	    strcasecmp(value, "0") != 0)
-		errno = EINVAL;
+  if (strcasecmp(value, "no") != 0 && strcasecmp(value, "n") != 0 && strcasecmp(value, "false") != 0 && strcasecmp(value, "0") != 0) errno = EINVAL;
 
-	return false;
+  return false;
 }
-
 
 /**
  * Read the entire @file into the buffer and set @len to the
@@ -62,184 +51,163 @@ rc_yesno(const char *value)
  * be strlen(buffer) + 1.
  * Don't forget to free the buffer afterwards!
  */
-bool
-rc_getfile(const char *file, char **buffer, size_t *len)
-{
-	bool ret = false;
-	FILE *fp;
-	int fd;
-	struct stat st;
-	size_t done, left;
+bool rc_getfile(const char *file, char **buffer, size_t *len) {
+  bool ret = false;
+  FILE *fp;
+  int fd;
+  struct stat st;
+  size_t done, left;
 
-	fp = fopen(file, "re");
-	if (!fp)
-		return false;
+  fp = fopen(file, "re");
+  if (!fp) return false;
 
-	/* assume fileno() never fails */
-	fd = fileno(fp);
+  /* assume fileno() never fails */
+  fd = fileno(fp);
 
-	if (fstat(fd, &st))
-		goto finished;
+  if (fstat(fd, &st)) goto finished;
 
-	left = st.st_size;
-	*len = left + 1; /* NUL terminator */
-	*buffer = xrealloc(*buffer, *len);
-	while (left) {
-		done = fread(*buffer, sizeof(*buffer[0]), left, fp);
-		if (done == 0 && ferror(fp))
-			goto finished;
-		left -= done;
-	}
-	ret = true;
+  left = st.st_size;
+  *len = left + 1; /* NUL terminator */
+  *buffer = xrealloc(*buffer, *len);
+  while (left) {
+    done = fread(*buffer, sizeof(*buffer[0]), left, fp);
+    if (done == 0 && ferror(fp)) goto finished;
+    left -= done;
+  }
+  ret = true;
 
- finished:
-	if (!ret) {
-		free(*buffer);
-		*len = 0;
-	} else
-		(*buffer)[*len - 1] = '\0';
-	fclose(fp);
-	return ret;
+finished:
+  if (!ret) {
+    free(*buffer);
+    *len = 0;
+  } else
+    (*buffer)[*len - 1] = '\0';
+  fclose(fp);
+  return ret;
 }
 
-char *
-rc_proc_getent(const char *ent RC_UNUSED)
-{
+char *rc_proc_getent(const char *ent RC_UNUSED) {
 #ifdef __linux__
-	FILE *fp;
-	char *proc = NULL, *p, *value = NULL, *save;
-	size_t i, len;
+  FILE *fp;
+  char *proc = NULL, *p, *value = NULL, *save;
+  size_t i, len;
 
-	if (!exists("/proc/cmdline"))
-		return NULL;
+  if (!exists("/proc/cmdline")) return NULL;
 
-	if (!(fp = fopen("/proc/cmdline", "r")))
-		return NULL;
+  if (!(fp = fopen("/proc/cmdline", "r"))) return NULL;
 
-	i = 0;
-	if (xgetline(&proc, &i, fp) == -1) {
-		free(proc);
-		return NULL;
-	}
-	save = proc;
+  i = 0;
+  if (xgetline(&proc, &i, fp) == -1) {
+    free(proc);
+    return NULL;
+  }
+  save = proc;
 
-	len = strlen(ent);
-	while ((p = strsep(&save, " "))) {
-		if (strncmp(ent, p, len) == 0 && (p[len] == '\0' || p[len] == ' ' || p[len] == '=')) {
-			p += len;
-			if (*p == '=')
-				p++;
-			value = xstrdup(p);
-		}
-	}
+  len = strlen(ent);
+  while ((p = strsep(&save, " "))) {
+    if (strncmp(ent, p, len) == 0 && (p[len] == '\0' || p[len] == ' ' || p[len] == '=')) {
+      p += len;
+      if (*p == '=') p++;
+      value = xstrdup(p);
+    }
+  }
 
-	if (!value)
-		errno = ENOENT;
+  if (!value) errno = ENOENT;
 
-	fclose(fp);
-	free(proc);
+  fclose(fp);
+  free(proc);
 
-	return value;
+  return value;
 #else
-	return NULL;
+  return NULL;
 #endif
 }
 
-RC_STRINGLIST *
-rc_config_list(const char *file)
-{
-	FILE *fp;
-	char *buffer = NULL;
-	size_t len = 0;
-	char *p;
-	char *token;
-	RC_STRINGLIST *list = rc_stringlist_new();
+RC_STRINGLIST *rc_config_list(const char *file) {
+  FILE *fp;
+  char *buffer = NULL;
+  size_t len = 0;
+  char *p;
+  char *token;
+  RC_STRINGLIST *list = rc_stringlist_new();
 
-	if (!(fp = fopen(file, "r")))
-		return list;
+  if (!(fp = fopen(file, "r"))) return list;
 
-	while (xgetline(&buffer, &len, fp) != -1) {
-		p = buffer;
-		/* Strip leading spaces/tabs */
-		while ((*p == ' ') || (*p == '\t'))
-			p++;
+  while (xgetline(&buffer, &len, fp) != -1) {
+    p = buffer;
+    /* Strip leading spaces/tabs */
+    while ((*p == ' ') || (*p == '\t')) p++;
 
-		/* Get entry - we do not want comments */
-		token = strsep(&p, "#");
-		if (token && (strlen(token) > 1)) {
-			/* If not variable assignment then skip */
-			if (strchr(token, '=')) {
-				/* Strip the newline if present */
-				if (token[strlen(token) - 1] == '\n')
-					token[strlen(token) - 1] = 0;
+    /* Get entry - we do not want comments */
+    token = strsep(&p, "#");
+    if (token && (strlen(token) > 1)) {
+      /* If not variable assignment then skip */
+      if (strchr(token, '=')) {
+        /* Strip the newline if present */
+        if (token[strlen(token) - 1] == '\n') token[strlen(token) - 1] = 0;
 
-				rc_stringlist_add(list, token);
-			}
-		}
-	}
-	fclose(fp);
-	free(buffer);
+        rc_stringlist_add(list, token);
+      }
+    }
+  }
+  fclose(fp);
+  free(buffer);
 
-	return list;
+  return list;
 }
 
-static void rc_config_set_value(RC_STRINGLIST *config, char *value)
-{
-	RC_STRING *cline;
-	char *entry;
-	size_t i = 0;
-	char *newline;
-	char *p = value;
-	bool replaced;
-	char *token;
+static void rc_config_set_value(RC_STRINGLIST *config, char *value) {
+  RC_STRING *cline;
+  char *entry;
+  size_t i = 0;
+  char *newline;
+  char *p = value;
+  bool replaced;
+  char *token;
 
-	if (!p)
-		return;
-	if (strncmp(p, "export ", 7) == 0)
-		p += 7;
-	if (!(token = strsep(&p, "=")))
-		return;
+  if (!p) return;
+  if (strncmp(p, "export ", 7) == 0) p += 7;
+  if (!(token = strsep(&p, "="))) return;
 
-	entry = xstrdup(token);
-	/* Preserve shell coloring */
-	if (*p == '$')
-		token = value;
-	else
-		do {
-			/* Bash variables are usually quoted */
-			token = strsep(&p, "\"\'");
-		} while (token && *token == '\0');
+  entry = xstrdup(token);
+  /* Preserve shell coloring */
+  if (*p == '$')
+    token = value;
+  else
+    do {
+      /* Bash variables are usually quoted */
+      token = strsep(&p, "\"\'");
+    } while (token && *token == '\0');
 
-	/* Drop a newline if that's all we have */
-	if (token) {
-		i = strlen(token) - 1;
-		if (token[i] == '\n')
-			token[i] = 0;
+  /* Drop a newline if that's all we have */
+  if (token) {
+    i = strlen(token) - 1;
+    if (token[i] == '\n') token[i] = 0;
 
-		xasprintf(&newline, "%s=%s", entry, token);
-	} else {
-		xasprintf(&newline, "%s=", entry);
-	}
+    xasprintf(&newline, "%s=%s", entry, token);
+  } else {
+    xasprintf(&newline, "%s=", entry);
+  }
 
-	replaced = false;
-	/* In shells the last item takes precedence, so we need to remove
-	   any prior values we may already have */
-	TAILQ_FOREACH(cline, config, entries) {
-		i = strlen(entry);
-		if (strncmp(entry, cline->value, i) == 0 && cline->value[i] == '=') {
-			/* We have a match now - to save time we directly replace it */
-			free(cline->value);
-			cline->value = newline;
-			replaced = true;
-			break;
-		}
-	}
+  replaced = false;
+  /* In shells the last item takes precedence, so we need to remove
+     any prior values we may already have */
+  TAILQ_FOREACH(cline, config, entries) {
+    i = strlen(entry);
+    if (strncmp(entry, cline->value, i) == 0 && cline->value[i] == '=') {
+      /* We have a match now - to save time we directly replace it */
+      free(cline->value);
+      cline->value = newline;
+      replaced = true;
+      break;
+    }
+  }
 
-	if (!replaced) {
-		rc_stringlist_add(config, newline);
-		free(newline);
-	}
-	free(entry);
+  if (!replaced) {
+    rc_stringlist_add(config, newline);
+    free(newline);
+  }
+  free(entry);
 }
 
 /*
@@ -248,179 +216,159 @@ static void rc_config_set_value(RC_STRINGLIST *config, char *value)
  * a patch for this on *BSD or tell me how to write the code to do this,
  * any suggestions are welcome.
  */
-static RC_STRINGLIST *rc_config_kcl(RC_STRINGLIST *config)
-{
+static RC_STRINGLIST *rc_config_kcl(RC_STRINGLIST *config) {
 #ifdef __linux__
-	RC_STRINGLIST *overrides;
-	RC_STRING *cline, *override, *config_np;
-	char *tmp = NULL;
-	char *value = NULL;
-	size_t varlen = 0;
+  RC_STRINGLIST *overrides;
+  RC_STRING *cline, *override, *config_np;
+  char *tmp = NULL;
+  char *value = NULL;
+  size_t varlen = 0;
 
-	overrides = rc_stringlist_new();
+  overrides = rc_stringlist_new();
 
-	/* A list of variables which may be overridden on the kernel command line */
-	rc_stringlist_add(overrides, "rc_interactive");
-	rc_stringlist_add(overrides, "rc_parallel");
+  /* A list of variables which may be overridden on the kernel command line */
+  rc_stringlist_add(overrides, "rc_interactive");
+  rc_stringlist_add(overrides, "rc_parallel");
 
-	TAILQ_FOREACH(override, overrides, entries) {
-		varlen = strlen(override->value);
-		value = rc_proc_getent(override->value);
+  TAILQ_FOREACH(override, overrides, entries) {
+    varlen = strlen(override->value);
+    value = rc_proc_getent(override->value);
 
-		/* No need to continue if there's nothing to override */
-		if (!value) {
-			free(value);
-			continue;
-		}
+    /* No need to continue if there's nothing to override */
+    if (!value) {
+      free(value);
+      continue;
+    }
 
-		if (value != NULL) {
-			xasprintf(&tmp, "%s=%s", override->value, value);
-		}
+    if (value != NULL) {
+      xasprintf(&tmp, "%s=%s", override->value, value);
+    }
 
-		/*
-		 * Whenever necessary remove the old config entry first to prevent
-		 * duplicates
-		 */
-		TAILQ_FOREACH_SAFE(cline, config, entries, config_np) {
-			if (strncmp(override->value, cline->value, varlen) == 0
-				&& cline->value[varlen] == '=') {
-				rc_stringlist_delete(config, cline->value);
-				break;
-			}
-		}
+    /*
+     * Whenever necessary remove the old config entry first to prevent
+     * duplicates
+     */
+    TAILQ_FOREACH_SAFE(cline, config, entries, config_np) {
+      if (strncmp(override->value, cline->value, varlen) == 0 && cline->value[varlen] == '=') {
+        rc_stringlist_delete(config, cline->value);
+        break;
+      }
+    }
 
-		/* Add the option (var/value) to the current config */
-		rc_stringlist_add(config, tmp);
+    /* Add the option (var/value) to the current config */
+    rc_stringlist_add(config, tmp);
 
-		free(tmp);
-		free(value);
-	}
+    free(tmp);
+    free(value);
+  }
 
-	rc_stringlist_free(overrides);
+  rc_stringlist_free(overrides);
 #endif
-	return config;
+  return config;
 }
 
-static RC_STRINGLIST * rc_config_directory(RC_STRINGLIST *config, char *dir)
-{
-	DIR *dp;
-	struct dirent *d;
-	RC_STRINGLIST *rc_conf_d_files;
-	RC_STRING *fname;
-	RC_STRINGLIST *rc_conf_d_list;
-	char path[PATH_MAX];
-	RC_STRING *line;
+static RC_STRINGLIST *rc_config_directory(RC_STRINGLIST *config, char *dir) {
+  DIR *dp;
+  struct dirent *d;
+  RC_STRINGLIST *rc_conf_d_files;
+  RC_STRING *fname;
+  RC_STRINGLIST *rc_conf_d_list;
+  char path[PATH_MAX];
+  RC_STRING *line;
 
-	if ((dp = opendir(dir)) != NULL) {
-		rc_conf_d_files = rc_stringlist_new();
-		while ((d = readdir(dp)) != NULL) {
-			if (fnmatch("*.conf", d->d_name, FNM_PATHNAME) == 0) {
-				rc_stringlist_addu(rc_conf_d_files, d->d_name);
-			}
-		}
-		closedir(dp);
+  if ((dp = opendir(dir)) != NULL) {
+    rc_conf_d_files = rc_stringlist_new();
+    while ((d = readdir(dp)) != NULL) {
+      if (fnmatch("*.conf", d->d_name, FNM_PATHNAME) == 0) {
+        rc_stringlist_addu(rc_conf_d_files, d->d_name);
+      }
+    }
+    closedir(dp);
 
-		rc_stringlist_sort(&rc_conf_d_files);
-		TAILQ_FOREACH(fname, rc_conf_d_files, entries) {
-			if (!fname->value)
-				continue;
-			sprintf(path, "%s/%s", dir, fname->value);
-			rc_conf_d_list = rc_config_list(path);
-			TAILQ_FOREACH(line, rc_conf_d_list, entries)
-				if (line->value)
-					rc_config_set_value(config, line->value);
-			rc_stringlist_free(rc_conf_d_list);
-		}
+    rc_stringlist_sort(&rc_conf_d_files);
+    TAILQ_FOREACH(fname, rc_conf_d_files, entries) {
+      if (!fname->value) continue;
+      sprintf(path, "%s/%s", dir, fname->value);
+      rc_conf_d_list = rc_config_list(path);
+      TAILQ_FOREACH(line, rc_conf_d_list, entries)
+      if (line->value) rc_config_set_value(config, line->value);
+      rc_stringlist_free(rc_conf_d_list);
+    }
 
-		rc_stringlist_free(rc_conf_d_files);
-	}
+    rc_stringlist_free(rc_conf_d_files);
+  }
 
-	return config;
+  return config;
 }
 
-RC_STRINGLIST *
-rc_config_load(const char *file)
-{
-	RC_STRINGLIST *list;
-	RC_STRINGLIST *config;
-	RC_STRING *line;
+RC_STRINGLIST *rc_config_load(const char *file) {
+  RC_STRINGLIST *list;
+  RC_STRINGLIST *config;
+  RC_STRING *line;
 
-	list = rc_config_list(file);
-	config = rc_stringlist_new();
-	TAILQ_FOREACH(line, list, entries) {
-		rc_config_set_value(config, line->value);
-	}
-	rc_stringlist_free(list);
+  list = rc_config_list(file);
+  config = rc_stringlist_new();
+  TAILQ_FOREACH(line, list, entries) { rc_config_set_value(config, line->value); }
+  rc_stringlist_free(list);
 
-	return config;
+  return config;
 }
 
-char *
-rc_config_value(RC_STRINGLIST *list, const char *entry)
-{
-	RC_STRING *line;
-	char *p;
-	size_t len;
+char *rc_config_value(RC_STRINGLIST *list, const char *entry) {
+  RC_STRING *line;
+  char *p;
+  size_t len;
 
-	len = strlen(entry);
-	TAILQ_FOREACH(line, list, entries) {
-		p = strchr(line->value, '=');
-		if (p != NULL) {
-			if (strncmp(entry, line->value, len) == 0 && line->value[len] == '=')
-				return ++p;
-		}
-	}
-	return NULL;
+  len = strlen(entry);
+  TAILQ_FOREACH(line, list, entries) {
+    p = strchr(line->value, '=');
+    if (p != NULL) {
+      if (strncmp(entry, line->value, len) == 0 && line->value[len] == '=') return ++p;
+    }
+  }
+  return NULL;
 }
 
 /* Global for caching the strings loaded from rc.conf to avoid reparsing for
  * each rc_conf_value call */
 static RC_STRINGLIST *rc_conf = NULL;
 
-static void
-_free_rc_conf(void)
-{
-	rc_stringlist_free(rc_conf);
-}
+static void _free_rc_conf(void) { rc_stringlist_free(rc_conf); }
 
-char *
-rc_conf_value(const char *setting)
-{
-	const char *sysconfdir = rc_sysconfdir();
-	RC_STRING *s;
-	char *conf;
+char *rc_conf_value(const char *setting) {
+  const char *sysconfdir = rc_sysconfdir();
+  RC_STRING *s;
+  char *conf;
 
-	if (rc_conf)
-		return rc_config_value(rc_conf, setting);
+  if (rc_conf) return rc_config_value(rc_conf, setting);
 
-	xasprintf(&conf, "%s/%s", sysconfdir, "rc.conf");
-	rc_conf = rc_config_load(conf);
-	atexit(_free_rc_conf);
+  xasprintf(&conf, "%s/%s", sysconfdir, "rc.conf");
+  rc_conf = rc_config_load(conf);
+  atexit(_free_rc_conf);
 
-	free(conf);
+  free(conf);
 
-	/* Support old configs. */
-	if (exists(RC_CONF_OLD)) {
-		RC_STRINGLIST *old_conf = rc_config_load(RC_CONF_OLD);
-		TAILQ_CONCAT(rc_conf, old_conf, entries);
-		rc_stringlist_free(old_conf);
-	}
+  /* Support old configs. */
+  if (exists(RC_CONF_OLD)) {
+    RC_STRINGLIST *old_conf = rc_config_load(RC_CONF_OLD);
+    TAILQ_CONCAT(rc_conf, old_conf, entries);
+    rc_stringlist_free(old_conf);
+  }
 
-	xasprintf(&conf, "%s/%s", sysconfdir, "rc.conf.d");
-	rc_conf = rc_config_directory(rc_conf, conf);
-	free(conf);
+  xasprintf(&conf, "%s/%s", sysconfdir, "rc.conf.d");
+  rc_conf = rc_config_directory(rc_conf, conf);
+  free(conf);
 
-	rc_conf = rc_config_kcl(rc_conf);
+  rc_conf = rc_config_kcl(rc_conf);
 
-	/* Convert old uppercase to lowercase */
-	TAILQ_FOREACH(s, rc_conf, entries) {
-		char *p = s->value;
-		while (p && *p && *p != '=') {
-			if (isupper((unsigned char)*p))
-				*p = tolower((unsigned char)*p);
-			p++;
-		}
-	}
+  /* Convert old uppercase to lowercase */
+  TAILQ_FOREACH(s, rc_conf, entries) {
+    char *p = s->value;
+    while (p && *p && *p != '=') {
+      if (isupper((unsigned char)*p)) *p = tolower((unsigned char)*p);
+      p++;
+    }
+  }
 
-	return rc_config_value(rc_conf, setting);
+  return rc_config_value(rc_conf, setting);
 }

@@ -11,24 +11,21 @@
  */
 
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <string.h>
 
 #include "einfo.h"
 
-int main(void)
-{
-	const char *p = getenv("RC_PID");
-	int pid;
+int main(void) {
+  const char *p = getenv("RC_PID");
+  int pid;
 
-	if (p && sscanf(p, "%d", &pid) == 1) {
-		if (kill(pid, SIGUSR1) != 0)
-			eerrorx("rc-abort: failed to signal parent %d: %s",
-			    pid, strerror(errno));
-		return EXIT_SUCCESS;
-	}
+  if (p && sscanf(p, "%d", &pid) == 1) {
+    if (kill(pid, SIGUSR1) != 0) eerrorx("rc-abort: failed to signal parent %d: %s", pid, strerror(errno));
+    return EXIT_SUCCESS;
+  }
 
-	return EXIT_FAILURE;
+  return EXIT_FAILURE;
 }

@@ -17,52 +17,50 @@
 #include <string.h>
 
 #include "einfo.h"
-#include "rc.h"
-#include "misc.h"
 #include "helpers.h"
+#include "misc.h"
+#include "rc.h"
 
 const char *applet = NULL;
 
-int main(int argc, char **argv)
-{
-	bool ok = false;
-	char *service;
-	char *exec;
-	int idx = 0;
-	RC_SERVICE state, bit;
+int main(int argc, char **argv) {
+  bool ok = false;
+  char *service;
+  char *exec;
+  int idx = 0;
+  RC_SERVICE state, bit;
 
-	applet = basename_c(argv[0]);
-	if (argc > 1)
-		service = argv[1];
-	else
-		service = getenv("RC_SVCNAME");
+  applet = basename_c(argv[0]);
+  if (argc > 1)
+    service = argv[1];
+  else
+    service = getenv("RC_SVCNAME");
 
-	if (service == NULL || *service == '\0')
-		eerrorx("%s: no service specified", applet);
+  if (service == NULL || *service == '\0') eerrorx("%s: no service specified", applet);
 
-	state = rc_service_state(service);
-	bit = lookup_service_state(applet);
-	if (bit) {
-		ok = (state & bit);
-	} else if (strcmp(applet, "service_started_daemon") == 0) {
-		service = getenv("RC_SVCNAME");
-		exec = argv[1];
-		if (argc > 3) {
-			service = argv[1];
-			exec = argv[2];
-			sscanf(argv[3], "%d", &idx);
-		} else if (argc == 3) {
-			if (sscanf(argv[2], "%d", &idx) != 1) {
-				service = argv[1];
-				exec = argv[2];
-			}
-		}
-		ok = rc_service_started_daemon(service, exec, NULL, idx);
+  state = rc_service_state(service);
+  bit = lookup_service_state(applet);
+  if (bit) {
+    ok = (state & bit);
+  } else if (strcmp(applet, "service_started_daemon") == 0) {
+    service = getenv("RC_SVCNAME");
+    exec = argv[1];
+    if (argc > 3) {
+      service = argv[1];
+      exec = argv[2];
+      sscanf(argv[3], "%d", &idx);
+    } else if (argc == 3) {
+      if (sscanf(argv[2], "%d", &idx) != 1) {
+        service = argv[1];
+        exec = argv[2];
+      }
+    }
+    ok = rc_service_started_daemon(service, exec, NULL, idx);
 
-	} else if (strcmp(applet, "service_crashed") == 0) {
-		ok = ( rc_service_daemons_crashed(service) && errno != EACCES);
-	} else
-		eerrorx("%s: unknown applet", applet);
+  } else if (strcmp(applet, "service_crashed") == 0) {
+    ok = (rc_service_daemons_crashed(service) && errno != EACCES);
+  } else
+    eerrorx("%s: unknown applet", applet);
 
-	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
+  return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

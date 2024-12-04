@@ -27,68 +27,67 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#define ERRX fprintf (stderr, "out of memory\n"); exit (1)
+#define ERRX                          \
+  fprintf(stderr, "out of memory\n"); \
+  exit(1)
 
-#define UNCONST(a)		((void *)(uintptr_t)(const void *)(a))
+#define UNCONST(a) ((void *)(uintptr_t)(const void *)(a))
 
 #define RC_UNUSED __attribute__((__unused__))
 #define RC_NORETURN __attribute__((__noreturn__))
-#define RC_PRINTF(a, b)  __attribute__((__format__(__printf__, a, b)))
+
+// __format__ 是 GCC 的一个函数属性, 用于指定函数使用的格式化, 编译时检查格式串
+// __printf__ 是 __format__ 的参数之一, 表示函数使用 printf 风格的格式化字符串
+// RC_PRINTF(2,3) : 2 第二个参数, 3 第三个参数
+#define RC_PRINTF(a, b) __attribute__((__format__(__printf__, a, b)))
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 #ifndef HAVE_STRLCPY
-#    define strlcpy(dst, src, size) snprintf(dst, size, "%s", src)
+#define strlcpy(dst, src, size) snprintf(dst, size, "%s", src)
 #endif
 
 #ifndef timespecsub
-#define	timespecsub(tsp, usp, vsp)					      \
-	do {								      \
-		(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		      \
-		(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	      \
-		if ((vsp)->tv_nsec < 0) {				      \
-			(vsp)->tv_sec--;				      \
-			(vsp)->tv_nsec += 1000000000L;			      \
-		}							      \
-	} while (/* CONSTCOND */ 0)
+#define timespecsub(tsp, usp, vsp)                    \
+  do {                                                \
+    (vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;    \
+    (vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec; \
+    if ((vsp)->tv_nsec < 0) {                         \
+      (vsp)->tv_sec--;                                \
+      (vsp)->tv_nsec += 1000000000L;                  \
+    }                                                 \
+  } while (/* CONSTCOND */ 0)
 #endif
 
-RC_UNUSED static void *xmalloc (size_t size)
-{
-	void *value = malloc(size);
+RC_UNUSED static void *xmalloc(size_t size) {
+  void *value = malloc(size);
 
-	if (value)
-		return (value);
+  if (value) return (value);
 
-	ERRX;
-	/* NOTREACHED */
+  ERRX;
+  /* NOTREACHED */
 }
 
-RC_UNUSED static void *xrealloc(void *ptr, size_t size)
-{
-	void *value = realloc(ptr, size);
+RC_UNUSED static void *xrealloc(void *ptr, size_t size) {
+  void *value = realloc(ptr, size);
 
-	if (value)
-		return (value);
+  if (value) return (value);
 
-	ERRX;
-	/* NOTREACHED */
+  ERRX;
+  /* NOTREACHED */
 }
 
-RC_UNUSED static char *xstrdup(const char *str)
-{
-	char *value;
+RC_UNUSED static char *xstrdup(const char *str) {
+  char *value;
 
-	if (!str)
-		return (NULL);
+  if (!str) return (NULL);
 
-	value = strdup(str);
+  value = strdup(str);
 
-	if (value)
-		return (value);
+  if (value) return (value);
 
-	ERRX;
-	/* NOTREACHED */
+  ERRX;
+  /* NOTREACHED */
 }
 
 #undef ERRX
@@ -97,27 +96,23 @@ RC_UNUSED static char *xstrdup(const char *str)
  * basename_c never modifies the argument. As such, if there is a trailing
  * slash then an empty string is returned.
  */
-RC_UNUSED static const char *basename_c(const char *path)
-{
-	const char *slash = strrchr(path, '/');
+RC_UNUSED static const char *basename_c(const char *path) {
+  const char *slash = strrchr(path, '/');
 
-	if (slash)
-		return (++slash);
-	return (path);
+  if (slash) return (++slash);
+  return (path);
 }
 
-RC_UNUSED static bool exists(const char *pathname)
-{
-	struct stat buf;
+RC_UNUSED static bool exists(const char *pathname) {
+  struct stat buf;
 
-	return (stat(pathname, &buf) == 0);
+  return (stat(pathname, &buf) == 0);
 }
 
-RC_UNUSED static bool existss(const char *pathname)
-{
-	struct stat buf;
+RC_UNUSED static bool existss(const char *pathname) {
+  struct stat buf;
 
-	return (stat(pathname, &buf) == 0 && buf.st_size != 0);
+  return (stat(pathname, &buf) == 0 && buf.st_size != 0);
 }
 
 /*
@@ -128,53 +123,49 @@ RC_UNUSED static bool existss(const char *pathname)
  * functions to handle memory allocation.
  * this function was originally written by Mike Frysinger.
  */
-RC_UNUSED RC_PRINTF(2,3) static int xasprintf(char **strp, const char *fmt, ...)
-{
-	va_list ap;
-	int len;
-	int memlen;
-	char *ret;
+RC_UNUSED RC_PRINTF(2, 3) static int xasprintf(char **strp, const char *fmt, ...) {
+  va_list ap;
+  int len;
+  int memlen;
+  char *ret;
 
-	/*
-	 * Start with a buffer size that should cover the vast majority of uses
-	 * (path construction).
-	 */
-	memlen = 4096;
-	ret = xmalloc(memlen);
+  /*
+   * Start with a buffer size that should cover the vast majority of uses
+   * (path construction).
+   */
+  memlen = 4096;
+  ret = (char *)xmalloc(memlen);
 
-	va_start(ap, fmt);
-	len = vsnprintf(ret, memlen, fmt, ap);
-	va_end(ap);
-	if (len >= memlen) {
-		/*
-		 * Output was truncated, so increase buffer to exactly what we need.
-		 */
-		memlen = len + 1;
-		ret = xrealloc(ret, memlen);
-		va_start(ap, fmt);
-		len = vsnprintf(ret, len + 1, fmt, ap);
-		va_end(ap);
-	}
-	if (len < 0 || len >= memlen) {
-		/* Give up! */
-		fprintf(stderr, "xasprintf: unable to format a buffer\n");
-		free(ret);
-		exit(1);
-	}
-	*strp = ret;
-	return len;
+  va_start(ap, fmt);
+  len = vsnprintf(ret, memlen, fmt, ap);
+  va_end(ap);
+  if (len >= memlen) {
+    /*
+     * Output was truncated, so increase buffer to exactly what we need.
+     */
+    memlen = len + 1;
+    ret = xrealloc(ret, memlen);
+    va_start(ap, fmt);
+    len = vsnprintf(ret, len + 1, fmt, ap);
+    va_end(ap);
+  }
+  if (len < 0 || len >= memlen) {
+    /* Give up! */
+    fprintf(stderr, "xasprintf: unable to format a buffer\n");
+    free(ret);
+    exit(1);
+  }
+  *strp = ret;
+  return len;
 }
 
-RC_UNUSED static ssize_t xgetline(char **restrict lineptr, size_t *restrict n, FILE *restrict stream)
-{
-	ssize_t ret = getline(lineptr, n, stream);
-	if (ret <= 0)
-		return ret;
+RC_UNUSED static ssize_t xgetline(char **restrict lineptr, size_t *restrict n, FILE *restrict stream) {
+  ssize_t ret = getline(lineptr, n, stream);
+  if (ret <= 0) return ret;
 
-	if ((*lineptr)[ret - 1] == '\n')
-		(*lineptr)[--ret] = '\0';
+  if ((*lineptr)[ret - 1] == '\n') (*lineptr)[--ret] = '\0';
 
-	return ret;
+  return ret;
 }
 
 #endif

@@ -1,7 +1,7 @@
 /*
  * misc.h
  * This is private to us and not for user consumption
-*/
+ */
 
 /*
  * Copyright (c) 2007-2015 The OpenRC Authors.
@@ -18,22 +18,22 @@
 #ifndef __RC_MISC_H__
 #define __RC_MISC_H__
 
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "helpers.h"
 #include "rc.h"
 
-#define RC_LEVEL_BOOT           "boot"
-#define RC_LEVEL_DEFAULT        "default"
+#define RC_LEVEL_BOOT "boot"
+#define RC_LEVEL_DEFAULT "default"
 
-#define RC_KRUNLEVEL            RC_SVCDIR "/krunlevel"
+#define RC_KRUNLEVEL RC_SVCDIR "/krunlevel"
 
 char *rc_conf_value(const char *var);
 bool rc_conf_yesno(const char *var);
@@ -52,12 +52,12 @@ pid_t exec_service(const char *, const char *);
 int is_writable(const char *);
 
 #define service_start(service) exec_service(service, "start");
-#define service_stop(service)  exec_service(service, "stop");
+#define service_stop(service) exec_service(service, "stop");
 
 int parse_mode(mode_t *, char *);
 
 /* Handy function so we can wrap einfo around our deptree */
-RC_DEPTREE *_rc_deptree_load (int, int *);
+RC_DEPTREE *_rc_deptree_load(int, int *);
 
 RC_SERVICE lookup_service_state(const char *service);
 void from_time_t(char *time_string, time_t tv);

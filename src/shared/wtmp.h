@@ -1,7 +1,7 @@
 /*
  * rc-wtmp.h
  * This is private to us and not for user consumption
-*/
+ */
 
 /*
  * Copyright (c) 2017 The OpenRC Authors.
@@ -18,10 +18,9 @@
 #ifndef __RC_WTMP_H__
 #define __RC_WTMP_H__
 
-#include <utmp.h>
 #include <sys/types.h>
+#include <utmp.h>
 
-void log_wtmp(const char *user, const char *id, pid_t pid, int type,
-		const char *line);
+void log_wtmp(const char *user, const char *id, pid_t pid, int type, const char *line);
 
 #endif
