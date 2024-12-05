@@ -143,8 +143,8 @@ RC_PIDLIST *rc_find_pids(const char *exec, const char *const *argv, uid_t uid, p
   }
 
   while ((entry = readdir(procdir)) != NULL) {
-    if (sscanf(entry->d_name, "%d", &p) != 1) continue;
-    if (openrc_pid != 0 && openrc_pid == p) continue;
+    if (sscanf(entry->d_name, "%d", &p) != 1) continue;  // pid
+    if (openrc_pid != 0 && openrc_pid == p) continue;    // skip openrc itself
     if (pid != 0 && pid != p) continue;
     xasprintf(&buffer, "/proc/%d/ns/pid", p);
     if (exists(buffer)) {
@@ -154,8 +154,8 @@ RC_PIDLIST *rc_find_pids(const char *exec, const char *const *argv, uid_t uid, p
     free(buffer);
     if (pid == 0 && strlen(my_ns) && strlen(proc_ns) && strcmp(my_ns, proc_ns)) continue;
     if (uid) {
-      xasprintf(&buffer, "/proc/%d", p);
-      if (stat(buffer, &sb) != 0 || sb.st_uid != uid) {
+      xasprintf(&buffer, "/proc/%d", p);                 // "/proc/<pid>"
+      if (stat(buffer, &sb) != 0 || sb.st_uid != uid) {  // stat 不对; uid 不对
         free(buffer);
         continue;
       }
@@ -167,10 +167,10 @@ RC_PIDLIST *rc_find_pids(const char *exec, const char *const *argv, uid_t uid, p
     if (openvz_host) {
       xasprintf(&buffer, "/proc/%d/status", p);
       if (exists(buffer)) {
-        fp = fopen(buffer, "r");
+        fp = fopen(buffer, "r");  // fopen(3)
         free(buffer);
         if (!fp) continue;
-        while (xgetline(&line, &len, fp) != -1) {
+        while (xgetline(&line, &len, fp) != -1) {  // read "/proc/<pid>/status"
           if (strncmp(line, "envID:", 6) == 0) {
             container_pid = !(strncmp(line, "envID:\t0", 8) == 0);
             break;
@@ -180,7 +180,7 @@ RC_PIDLIST *rc_find_pids(const char *exec, const char *const *argv, uid_t uid, p
       }
     }
     if (container_pid) continue;
-    if (!pids) {
+    if (!pids) {  // create pids list lazily
       pids = xmalloc(sizeof(*pids));
       LIST_INIT(pids);
     }
@@ -481,54 +481,57 @@ bool rc_service_daemons_crashed(const char *service) {
   char *ch_root;
   char *spidfile;
 
+  // "/run/openrc/daemons/<service>"
+  // path points to end of dirpath
   path += snprintf(dirpath, sizeof(dirpath), "%s/daemons/%s", rc_svcdir(), basename_c(service));
 
   if (!(dp = opendir(dirpath))) return false;
 
   while ((d = readdir(dp))) {
-    if (d->d_name[0] == '.') continue;
+    if (d->d_name[0] == '.') continue;  // skip <dotfiles> <.> <..>
 
+    // "/run/openrc/daemons/<service>/<d_name>"
     snprintf(path, sizeof(dirpath) - (path - dirpath), "/%s", d->d_name);
     fp = fopen(dirpath, "r");
     if (!fp) break;
 
     while (xgetline(&line, &len, fp) != -1) {
       p = line;
-      if ((token = strsep(&p, "=")) == NULL || !p) continue;
+      if ((token = strsep(&p, "=")) == NULL || !p) continue;  // line without "="
 
-      if (!*p) continue;
+      if (!*p) continue;  // <option> = '\0'
 
       if (strcmp(token, "exec") == 0) {
-        if (exec) free(exec);
+        if (exec) free(exec);  // clear old exec
         exec = xstrdup(p);
-      } else if (strncmp(token, "argv_", 5) == 0) {
-        if (!list) list = rc_stringlist_new();
+      } else if (strncmp(token, "argv_", 5) == 0) {  // argv_<xxx> = <p>
+        if (!list) list = rc_stringlist_new();       // create list lazily
         rc_stringlist_add(list, p);
       } else if (strcmp(token, "name") == 0) {
         if (name) free(name);
         name = xstrdup(p);
-      } else if (strcmp(token, "pidfile") == 0) {
+      } else if (strcmp(token, "pidfile") == 0) {  // pidfile = <p>
         pidfile = xstrdup(p);
         break;
       }
     }
     fclose(fp);
 
-    ch_root = rc_service_value_get(basename_c(service), "chroot");
+    ch_root = rc_service_value_get(basename_c(service), "chroot");  // "/run/openrc/options/<service>/chroot"
     spidfile = pidfile;
     if (ch_root && pidfile) {
       spidfile = xmalloc(strlen(ch_root) + strlen(pidfile) + 1);
       strcpy(spidfile, ch_root);
       strcat(spidfile, pidfile);
       free(pidfile);
-      pidfile = spidfile;
+      pidfile = spidfile;  // <chroot>/<pidfile>
     }
 
     pid = 0;
     if (pidfile) {
       retval = true;
       if ((fp = fopen(pidfile, "r"))) {
-        if (fscanf(fp, "%d", &pid) == 1) retval = false;
+        if (fscanf(fp, "%d", &pid) == 1) retval = false;  // read pid from <pidfile>
         fclose(fp);
       }
       free(pidfile);
@@ -542,7 +545,7 @@ bool rc_service_daemons_crashed(const char *service) {
       name = NULL;
     } else {
       if (exec) {
-        if (!list) list = rc_stringlist_new();
+        if (!list) list = rc_stringlist_new();  // create list lazily
         if (!TAILQ_FIRST(list)) rc_stringlist_add(list, exec);
 
         free(exec);
@@ -553,29 +556,33 @@ bool rc_service_daemons_crashed(const char *service) {
         /* We need to flatten our linked list
            into an array */
         i = 0;
-        TAILQ_FOREACH(s, list, entries)
-        i++;
+        TAILQ_FOREACH(s, list, entries) { i++; }  // count args
         argv = xmalloc(sizeof(char *) * (i + 1));
         i = 0;
-        TAILQ_FOREACH(s, list, entries)
-        argv[i++] = s->value;
-        argv[i] = NULL;
+        TAILQ_FOREACH(s, list, entries) { argv[i++] = s->value; }
+        argv[i] = NULL;  // set the last as NULL
       }
     }
 
     if (!retval) {
       if (pid != 0) {
-        if (kill(pid, 0) == -1 && errno == ESRCH) retval = true;
+        // kill(2)
+        // If sig is 0, then no signal is sent, but existence and permission checks are still performed;
+        // this can be used to check for the existence of a process ID or process group ID that the caller is permitted to signal.
+        if (kill(pid, 0) == -1 && errno == ESRCH) {  // no such process
+          retval = true;
+        }
       } else if ((pids = rc_find_pids(exec, (const char *const *)argv, 0, pid))) {
         p1 = LIST_FIRST(pids);
         while (p1) {
           p2 = LIST_NEXT(p1, entries);
-          free(p1);
-          p1 = p2;
+          free(p1);  // free prev
+          p1 = p2;   // prev = cur;
         }
         free(pids);
-      } else
+      } else {
         retval = true;
+      }
     }
     rc_stringlist_free(list);
     list = NULL;
@@ -585,7 +592,9 @@ bool rc_service_daemons_crashed(const char *service) {
     exec = NULL;
     free(name);
     name = NULL;
-    if (retval) break;
+    if (retval) {
+      break;
+    }
   }
   closedir(dp);
   free(line);

@@ -36,6 +36,7 @@ const struct option longopts[] = {{"debug", 0, NULL, 'd'},
                                   {"nodeps", 0, NULL, 'D'},
                                   {"exists", 1, NULL, 'e'},
                                   {"ifcrashed", 0, NULL, 'c'},
+                                  //  If -i, --ifexists is given then rc-service returns 0 even if the service does not exist.
                                   {"ifexists", 0, NULL, 'i'},
                                   {"ifinactive", 0, NULL, 'I'},
                                   {"ifnotstarted", 0, NULL, 'N'},
@@ -45,6 +46,7 @@ const struct option longopts[] = {{"debug", 0, NULL, 'd'},
                                   {"resolve", 1, NULL, 'r'},
                                   {"dry-run", 0, NULL, 'Z'},
                                   longopts_COMMON};
+
 const char *const longopts_help[] = {"set xtrace when running the command",
                                      "ignore dependencies",
                                      "tests if the service exists or not",
@@ -78,7 +80,7 @@ int main(int argc, char **argv) {
   bool if_started = false;
   bool if_stopped = false;
 
-  applet = basename_c(argv[0]);
+  applet = basename_c(argv[0]);  // get the name of the program
   /* Ensure that we are only quiet when explicitly told to be */
   unsetenv("EINFO_QUIET");
 
@@ -90,7 +92,7 @@ int main(int argc, char **argv) {
       case 'D':
         setenv("RC_NODEPS", "yes", 1);
         break;
-      case 'e':
+      case 'e':  // check if service exists
         service = rc_service_resolve(optarg);
         opt = service ? EXIT_SUCCESS : EXIT_FAILURE;
         free(service);
@@ -117,7 +119,7 @@ int main(int argc, char **argv) {
         rc_stringlist_free(list);
         return EXIT_SUCCESS;
         /* NOTREACHED */
-      case 'r':
+      case 'r':  // revolve. input: <service>, output: <init_script>
         service = rc_service_resolve(optarg);
         if (service == NULL) return EXIT_FAILURE;
         printf("%s\n", service);
@@ -138,10 +140,10 @@ int main(int argc, char **argv) {
     }
   }
 
-  argc -= optind;
+  argc -= optind;  // optind is the index of the next element to be processed in argv.
   argv += optind;
   if (*argv == NULL) eerrorx("%s: you need to specify a service", applet);
-  if ((service = rc_service_resolve(*argv)) == NULL) {
+  if ((service = rc_service_resolve(*argv)) == NULL) {  // service is the path of the init script
     if (if_exists) return 0;
     eerrorx("%s: service `%s' does not exist", applet, *argv);
   }

@@ -48,7 +48,7 @@
 FILE *rc_environ_fd = NULL;
 
 typedef struct rc_service_state_name {
-  RC_SERVICE state;
+  RC_SERVICE state;  // enum RC_SERVICE
   const char *name;
 } rc_service_state_name_t;
 
@@ -68,6 +68,11 @@ static const rc_service_state_name_t rc_service_state_names[] = {{RC_SERVICE_STA
 
 #define LS_INITD 0x01
 #define LS_DIR 0x02
+
+// 我发现这个 options 要不是 0 , 要不就是 LS_INITD 或者 LS_DIR, 不会有 LS_INITD | LS_DIR 这种组合
+// 0 : 什么东西都会加入到 list 中
+// LS_INITD : 不加入 xxx.sh 文件
+// LS_DIR : 只加入 目录
 static RC_STRINGLIST *ls_dir(const char *dir, int options) {
   DIR *dp;
   struct dirent *d;
@@ -80,7 +85,7 @@ static RC_STRINGLIST *ls_dir(const char *dir, int options) {
   list = rc_stringlist_new();
   if ((dp = opendir(dir)) == NULL) return list;
   while (((d = readdir(dp)) != NULL)) {
-    if (d->d_name[0] != '.') {
+    if (d->d_name[0] != '.') {  // skip <dotfiles> <.> <..>
       if (options & LS_INITD) {
         /* Check that our file really exists.
          * This is important as a service maybe in a
@@ -88,7 +93,7 @@ static RC_STRINGLIST *ls_dir(const char *dir, int options) {
         xasprintf(&file, "%s/%s", dir, d->d_name);
         r = stat(file, &buf);
         free(file);
-        if (r != 0) continue;
+        if (r != 0) continue;  // stat failed
 
         /* .sh files are not init scripts */
         l = strlen(d->d_name);
@@ -118,19 +123,19 @@ static bool rm_dir(const char *pathname, bool top) {
 
   errno = 0;
   while (((d = readdir(dp)) != NULL) && errno == 0) {
-    if (strcmp(d->d_name, ".") != 0 && strcmp(d->d_name, "..") != 0) {
+    if (strcmp(d->d_name, ".") != 0 && strcmp(d->d_name, "..") != 0) {  // skip <.> <..>
       xasprintf(&file, "%s/%s", pathname, d->d_name);
-      if (stat(file, &s) != 0) {
+      if (stat(file, &s) != 0) {  // error
         retval = false;
         break;
       }
       if (S_ISDIR(s.st_mode)) {
-        if (!rm_dir(file, true)) {
+        if (!rm_dir(file, true)) {  // recursively remove directory
           retval = false;
           break;
         }
       } else {
-        if (unlink(file)) {
+        if (unlink(file)) {  // remove file
           retval = false;
           break;
         }
@@ -144,7 +149,7 @@ static bool rm_dir(const char *pathname, bool top) {
 
   if (!retval) return false;
 
-  if (top && rmdir(pathname) != 0) return false;
+  if (top && rmdir(pathname) != 0) return false;  // remove the directory itself, 短路规则
 
   return true;
 }
@@ -466,11 +471,11 @@ RC_STRINGLIST *rc_runlevel_stacks(const char *runlevel) {
 
 static const char *const scriptdirs[] = {
 #ifdef RC_LOCAL_PREFIX
-    RC_LOCAL_PREFIX "/etc",
+    RC_LOCAL_PREFIX "/etc",  // "/usr/local/etc"
 #endif
-    RC_SYSCONFDIR,
+    RC_SYSCONFDIR,  // "/etc"
 #ifdef RC_PKG_PREFIX
-    RC_PKG_PREFIX "/etc",
+    RC_PKG_PREFIX "/etc",  // "/usr/etc"
 #endif
     NULL};
 
@@ -480,30 +485,38 @@ const char *rc_sysconfdir(void) { return RC_SYSCONFDIR; }
 
 const char *rc_runleveldir(void) { return RC_RUNLEVELDIR; }
 
-const char *rc_svcdir(void) { return RC_SVCDIR; }
+const char *rc_svcdir(void) { return RC_SVCDIR; }  // "/run/openrc". svc is the short of service
 
+/**
+ * call malloc inside
+ * @param path symbolic link path
+ * @param buf the path that symbolic link points to
+ */
 static ssize_t safe_readlink(const char *path, char **buf, size_t bufsiz) {
   char *buffer;
-  ssize_t r;
+  ssize_t ret;
 
-  for (;; bufsiz += PATH_MAX) {
+  for (;; bufsiz += PATH_MAX) {  // PATH_MAX = 4096
     buffer = xmalloc(bufsiz);
-    r = readlink(path, buffer, bufsiz);
-    if (r < 0) {
+    ret = readlink(path, buffer, bufsiz);  // dereference recursively until it is not a symbolic link
+    if (ret < 0) {
       free(buffer);
       return -errno;
     }
-    if ((size_t)r < bufsiz) {
-      buffer[r] = '\0';
+    if ((size_t)ret < bufsiz) {
+      buffer[ret] = '\0';
       *buf = buffer;
-      return r;
+      return ret;
     }
+    // if ret >= bufsiz, free buffer and try again
     free(buffer);
     if (bufsiz >= SSIZE_MAX - PATH_MAX) return -ENOMEM;
   }
 }
 
-/* Resolve a service name to its full path */
+/* Resolve a service name to its full path. */
+// resolve(解析). 这个词在 msvc 比较常见: 一个无法解析的外部符号
+// malloc inside
 char *rc_service_resolve(const char *service) {
   char *buffer;
   char *file = NULL;
@@ -514,10 +527,10 @@ char *rc_service_resolve(const char *service) {
   if (service[0] == '/') return xstrdup(service);
 
   /* First check started services */
-  xasprintf(&file, "%s/%s/%s", rc_svcdir(), "started", service);
-  if (lstat(file, &buf) || !S_ISLNK(buf.st_mode)) {
+  xasprintf(&file, "%s/%s/%s", rc_svcdir(), "started", service);  // "/run/openrc/started/<service>"
+  if (lstat(file, &buf) || !S_ISLNK(buf.st_mode)) {               // lstat(2)
     free(file);
-    xasprintf(&file, "%s/%s/%s", rc_svcdir(), "inactive", service);
+    xasprintf(&file, "%s/%s/%s", rc_svcdir(), "inactive", service);  // "/run/openrc/inactive/<service>"
     if (lstat(file, &buf) || !S_ISLNK(buf.st_mode)) {
       free(file);
       file = NULL;
@@ -525,14 +538,17 @@ char *rc_service_resolve(const char *service) {
   }
 
   if (file != NULL && safe_readlink(file, &buffer, buf.st_size + 1) >= 0) {
+    // "run/openrc/started/<service>" or "run/openrc/inactive/<service>", which is a symbolic link
+    // buffer is the path that symbolic link points to (recursive)
     free(file);
     return buffer;
   }
 
+  // search in /etc/init.d/, /usr/local/etc/init.d/, /usr/etc/init.d/
   for (const char *const *dirs = rc_scriptdirs(); *dirs; dirs++) {
     free(file);
-    xasprintf(&file, "%s/init.d/%s", *dirs, service);
-    if (stat(file, &buf) == 0) return file;
+    xasprintf(&file, "%s/init.d/%s", *dirs, service);  // "/etc/init.d/<service>"
+    if (stat(file, &buf) == 0) return file;            // check if file exists
   }
 
   free(file);
@@ -760,23 +776,33 @@ bool rc_service_mark(const char *service, const RC_SERVICE state) {
   return true;
 }
 
-RC_SERVICE
-rc_service_state(const char *service) {
+RC_SERVICE rc_service_state(const char *service) {
   int i;
   int state = RC_SERVICE_STOPPED;
   char *file;
   RC_STRINGLIST *dirs;
   RC_STRING *dir;
   const char *base = basename_c(service);
-  const char *svcdir = rc_svcdir();
+  const char *svcdir = rc_svcdir();  // service directory
 
-  for (i = 0; rc_service_state_names[i].name; i++) {
-    xasprintf(&file, "%s/%s/%s", svcdir, rc_service_state_names[i].name, base);
+  for (i = 0; rc_service_state_names[i].name; i++) {                             // {<state_enum>, <state_name>}
+    xasprintf(&file, "%s/%s/%s", svcdir, rc_service_state_names[i].name, base);  // "/run/openrc/<state_name>/<service>"
     if (exists(file)) {
-      if (rc_service_state_names[i].state <= 0x10)
+      if (rc_service_state_names[i].state <= 0x10) {
+        // RC_SERVICE_STOPPED = 0x0001,
+        // RC_SERVICE_STARTED = 0x0002,
+        // RC_SERVICE_STOPPING = 0x0004,
+        // RC_SERVICE_STARTING = 0x0008,
+        // RC_SERVICE_INACTIVE = 0x0010,
         state = rc_service_state_names[i].state;
-      else
+      } else {
+        // RC_SERVICE_HOTPLUGGED = 0x0100, /* Service may or may not have been hotplugged */
+        // RC_SERVICE_FAILED = 0x0200, /* Optional states service could also be in */
+        // RC_SERVICE_SCHEDULED = 0x0400,
+        // RC_SERVICE_WASINACTIVE = 0x0800,
+        // RC_SERVICE_CRASHED = 0x1000,
         state |= rc_service_state_names[i].state;
+      }
     }
     free(file);
   }
@@ -809,7 +835,7 @@ char *rc_service_value_get(const char *service, const char *option) {
   size_t len = 0;
   char *file;
 
-  xasprintf(&file, "%s/options/%s/%s", rc_svcdir(), service, option);
+  xasprintf(&file, "%s/options/%s/%s", rc_svcdir(), service, option);  // "/run/openrc/options/<service>/<option>"
   rc_getfile(file, &buffer, &len);
   free(file);
 
@@ -896,9 +922,9 @@ RC_STRINGLIST *rc_services_in_runlevel(const char *runlevel) {
   }
 
   /* These special levels never contain any services */
-  if (strcmp(runlevel, RC_LEVEL_SINGLE) != 0) {
-    xasprintf(&dir, "%s/%s", rc_runleveldir(), runlevel);
-    list = ls_dir(dir, LS_INITD);
+  if (strcmp(runlevel, RC_LEVEL_SINGLE) != 0) {            // runlevel != "single"
+    xasprintf(&dir, "%s/%s", rc_runleveldir(), runlevel);  // "runlevels/<runlevel>"
+    list = ls_dir(dir, LS_INITD);                          //
     free(dir);
   }
   if (!list) list = rc_stringlist_new();

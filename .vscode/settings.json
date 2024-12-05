@@ -1,3 +1,22 @@
 {
-  "cSpell.words": ["DHAVE", "xasprintf"]
+  "cSpell.words": [
+    "DHAVE",
+    "ecolors",
+    "eerrorx",
+    "Frysinger",
+    "hotplugged",
+    "ifcrashed",
+    "ifnotstarted",
+    "ifstarted",
+    "ifstopped",
+    "nodeps",
+    "notstarted",
+    "openrc",
+    "SVCDIR",
+    "WASINACTIVE",
+    "xasprintf",
+    "xgetline",
+    "xrealloc",
+    "xtrace"
+  ]
 }

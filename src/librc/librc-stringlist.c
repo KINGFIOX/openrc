@@ -26,6 +26,10 @@
 
 RC_STRINGLIST *rc_stringlist_new(void) {
   RC_STRINGLIST *l = xmalloc(sizeof(*l));
+  // do {
+  //   (l)->tqh_first = NULL;
+  //   (l)->tqh_last = &(l)->tqh_first; // 单向循环 ?
+  // } while (0);
   TAILQ_INIT(l);
   return l;
 }
@@ -34,6 +38,12 @@ RC_STRING *rc_stringlist_add(RC_STRINGLIST *list, const char *value) {
   RC_STRING *s = xmalloc(sizeof(*s));
 
   s->value = xstrdup(value);
+  // do {
+  //   (s)->entries.tqe_next = NULL;
+  //   (s)->entries.tqe_prev = (list)->tqh_last;
+  //   *(list)->tqh_last = (s);
+  //   (list)->tqh_last = &(s)->entries.tqe_next;
+  // } while (0);
   TAILQ_INSERT_TAIL(list, s, entries);
   return s;
 }

@@ -59,6 +59,7 @@
   } while (/* CONSTCOND */ 0)
 #endif
 
+// 这里给 malloc 包了一层, 如果 malloc 失败, 直接 exit(1)
 RC_UNUSED static void *xmalloc(size_t size) {
   void *value = malloc(size);
 
@@ -118,10 +119,11 @@ RC_UNUSED static bool existss(const char *pathname) {
 /*
  * This is an OpenRC specific version of the asprintf() function.
  * We do this to avoid defining the _GNU_SOURCE feature test macro on
- * glibc systems and to ensure that we have a consistent function across
- * platforms. This also allows us to call our xmalloc and xrealloc
- * functions to handle memory allocation.
+ *  glibc systems and to ensure that we have a consistent function across platforms.
+ * This also allows us to call our xmalloc and xrealloc functions to handle memory allocation.
  * this function was originally written by Mike Frysinger.
+ *
+ * 这个函数内部会有 malloc
  */
 RC_UNUSED RC_PRINTF(2, 3) static int xasprintf(char **strp, const char *fmt, ...) {
   va_list ap;
@@ -134,7 +136,7 @@ RC_UNUSED RC_PRINTF(2, 3) static int xasprintf(char **strp, const char *fmt, ...
    * (path construction).
    */
   memlen = 4096;
-  ret = (char *)xmalloc(memlen);
+  ret = (char *)xmalloc(memlen);  // 分配内存
 
   va_start(ap, fmt);
   len = vsnprintf(ret, memlen, fmt, ap);
@@ -144,7 +146,7 @@ RC_UNUSED RC_PRINTF(2, 3) static int xasprintf(char **strp, const char *fmt, ...
      * Output was truncated, so increase buffer to exactly what we need.
      */
     memlen = len + 1;
-    ret = xrealloc(ret, memlen);
+    ret = xrealloc(ret, memlen);  // 重新分配内存
     va_start(ap, fmt);
     len = vsnprintf(ret, len + 1, fmt, ap);
     va_end(ap);
@@ -159,6 +161,7 @@ RC_UNUSED RC_PRINTF(2, 3) static int xasprintf(char **strp, const char *fmt, ...
   return len;
 }
 
+// malloc inside
 RC_UNUSED static ssize_t xgetline(char **restrict lineptr, size_t *restrict n, FILE *restrict stream) {
   ssize_t ret = getline(lineptr, n, stream);
   if (ret <= 0) return ret;

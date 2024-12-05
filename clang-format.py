@@ -9,8 +9,7 @@ def format_directory(path : Path):
             os.system("clang-format -i -style=file " + str(file))
 
 if __name__ == "__main__":
-    format_directory(Path("."))
-    # dirs = ["src"]
-    # for dir in dirs:
-    #     path = Path(dir)
-    #     format_directory(path)
+    dirs = ["src"]
+    for dir in dirs:
+        path = Path(dir)
+        format_directory(path)
